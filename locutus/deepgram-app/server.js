@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
-const API_KEY = 'bd7fd2c535bf7c4aa886142f2a406df3a6693e96'; // Replace with your Deepgram API key
+const API_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'; // Replace with your Deepgram API key
 
 // CORS setup
 app.use((req, res, next) => {
