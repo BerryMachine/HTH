@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Deepgram Workshop</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700');
+      body { background: #141E29; color: white; font-family: 'Cairo', sans-serif; padding: 1em; }
+      img { width: 100%; }
+      p { font-size: 1.25em; line-height: 1.5; }
+      button { margin: 5px; padding: 10px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <img src="https://cdn.glitch.global/d9ff0d46-3907-4198-949e-85228bfb9cbf/long-logo-red.png?v=1641825382593">
+    <p id="transcriptionText"></p>
+    
+    <!-- File upload button -->
+    <input type="file" id="fileInput" accept=".wav, .mp3" />
+    <button id="uploadButton">Upload Audio</button>
+
+    <!-- Recording buttons -->
+    <button id="recordButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const DG_ENDPOINT = 'wss://api.deepgram.com/v1/listen'; // live transcription endpoint
+        const API_KEY = 'bd7fd2c535bf7c4aa886142f2a406df3a6693e96'; // Replace with your Deepgram API key
+        let mediaRecorder;
+        let socket;
+    
+        // Handle audio file upload
+        document.getElementById('uploadButton').addEventListener('click', async () => {
+          const fileInput = document.getElementById('fileInput');
+          const file = fileInput.files[0];
+          if (!file) {
+            alert('Please select an audio file to upload.');
+            return;
+          }
+    
+          const formData = new FormData();
+          formData.append('audio', file);
+    
+          try {
+            const response = await fetch('http://localhost:5000/upload', {
+              method: 'POST',
+              body: formData,
+            });
+            const data = await response.json();
+            if (data.transcript) {
+              document.getElementById('transcriptionText').textContent = data.transcript;
+            } else {
+              document.getElementById('transcriptionText').textContent = 'Error: No transcription data available.';
+            }
+          } catch (error) {
+            console.error('Error uploading audio file:', error);
+            document.getElementById('transcriptionText').textContent = 'Error uploading audio file.';
+          }
+        });
+    
+        // Handle audio recording
+        document.getElementById('recordButton').addEventListener('click', async () => {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    
+            socket = new WebSocket(DG_ENDPOINT, ['token', API_KEY]);
+    
+            socket.onopen = () => {
+              mediaRecorder.addEventListener('dataavailable', event => {
+                if (socket.readyState === WebSocket.OPEN) {
+                  socket.send(event.data);
+                } else {
+                  console.error('WebSocket is not open. Current state:', socket.readyState);
+                }
+              });
+              mediaRecorder.start(250); // timeslice
+              document.getElementById('recordButton').disabled = true;
+              document.getElementById('stopButton').disabled = false;
+            };
+    
+            socket.onmessage = message => {
+              const data = JSON.parse(message.data);
+              console.log('Received message:', data); // Log the entire response
+    
+              const is_final = data.is_final;
+    
+              // Check if data is defined and has the expected structure
+              if (!data || !data.channel || !data.channel.alternatives || !data.channel.alternatives[0]) {
+                console.error('Received unexpected data format:', data);
+                document.getElementById('transcriptionText').textContent += ' Error: No transcription data available.';
+                return;
+              }
+    
+              const alternatives = data.channel.alternatives[0];
+              const transcript = alternatives.transcript;
+    
+              // Handle scenarios where there might be no speech
+              if (transcript) {
+                if (is_final) {
+                  document.getElementById('transcriptionText').textContent += ' ' + transcript;
+                }
+              } else if (is_final) {
+                // When the result is final but no transcript is available, handle it gracefully
+                console.log('Final result received but no speech detected.');
+                document.getElementById('transcriptionText').textContent += '';
+              }
+            };
+    
+            socket.onerror = error => {
+              console.error('WebSocket error:', error);
+              document.getElementById('transcriptionText').textContent = 'WebSocket error: ' + JSON.stringify(error);
+            };
+    
+            socket.onclose = () => {
+              console.log('WebSocket connection closed.');
+            };
+    
+          } catch (error) {
+            console.error('Error accessing microphone:', error);
+            document.getElementById('transcriptionText').textContent = 'Error accessing microphone: ' + error.message;
+          }
+        });
+    
+        document.getElementById('stopButton').addEventListener('click', () => {
+          mediaRecorder.stop();
+          socket.close();
+          document.getElementById('recordButton').disabled = false;
+          document.getElementById('stopButton').disabled = true;
+        });
+      });
+    </script>
+    
+  </body>
+</html>
