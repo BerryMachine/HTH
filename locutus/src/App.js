@@ -1,5 +1,5 @@
 const DG_ENDPOINT = 'wss://api.deepgram.com/v1/listen'; // live transcription endpoint
-const API_KEY = 'bd7fd2c535bf7c4aa886142f2a406df3a6693e96'; // Your Deepgram API key (do not expose it in production)
+const API_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'; // Your Deepgram API key (do not expose it in production)
 
 const recordButton = document.getElementById('recordButton');
 const audioFileInput = document.getElementById('audioFile');
